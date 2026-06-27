@@ -330,6 +330,18 @@ details.collapse .collapse-body { padding: 0 22px 20px; }
 
 .brandline { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 22px; letter-spacing: 0.05em; }
 
+/* understated creator credit */
+.credit {
+  display: block;
+  text-align: center;
+  margin-top: 28px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+}
+.credit:hover { text-decoration: underline; }
+
 .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-size: 13px; padding: 9px 18px; border-radius: 20px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 50; }
 .toast.show { opacity: 1; }
 

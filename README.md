@@ -34,7 +34,7 @@ The badge's “Learn more” points at the full URL of your hosted About page. I
 1. **UI override** — the *“Learn more” link* field on the page. Anyone using a hosted copy can point their badges at their own About page; the value is saved in their browser only (localStorage, no network).
 2. **`LEARN_MORE_URL` constant** in `app.js` — the shipped default. If you fork this, set it to your own About page:
    ```js
-   const LEARN_MORE_URL = 'https://your-site.netlify.app/about.html';
+   const LEARN_MORE_URL = 'https://ai-writing-transparency.netlify.app/about.html';
    ```
 3. **Auto-derived** from the address bar (`…/about.html`), if `LEARN_MORE_URL` is left blank and the page is served over http(s).
 4. **Placeholder** — only on `file://` with no override and a blank constant; clearly labelled so the badge stays copyable for inspection.

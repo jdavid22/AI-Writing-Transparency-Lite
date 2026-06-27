@@ -26,7 +26,7 @@
 //  If you fork this, set LEARN_MORE_URL to your own About page (or leave it
 //  blank to auto-derive on http(s)).
 //
-const LEARN_MORE_URL = 'https://YOUR-SITE.netlify.app/about.html'; // default; users can override in the UI
+const LEARN_MORE_URL = 'https://ai-writing-transparency.netlify.app/about.html'; // default; users can override in the UI
 const PLACEHOLDER_URL = 'https://YOUR-SITE.example/about.html'; // shown only on file:// when the constant is blank and no override
 const BASE_KEY = 'aside.learnMoreUrl';
 
