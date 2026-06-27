@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>AI Writing Transparency — AI-assistance badge for email footers</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="wrap">
+    <header class="masthead">
+      <span class="mark">✶</span>
+      <h1>AI Writing Transparency</h1>
+      <span class="tag">good-faith AI disclosure</span>
+    </header>
+    <p class="lede">
+      Generate a small, transparent badge that shows an email was written or edited with AI,
+      and keep a private JSON record you can reload later. Everything runs in this page, and
+      nothing is ever sent anywhere.
+    </p>
+
+    <!-- 1–4: the source ------------------------------------------------ -->
+    <section class="card">
+      <div class="step-num">01 — Source</div>
+      <h2 class="section-title">How was AI involved?</h2>
+
+      <div class="seg" id="kind-toggle" role="radiogroup" aria-label="Source kind">
+        <label><input type="radio" name="kind" value="prompt" checked><span>A prompt I gave the AI</span></label>
+        <label><input type="radio" name="kind" value="edit"><span>My own draft, AI edited it</span></label>
+      </div>
+
+      <div style="margin-top:16px">
+        <label class="field-label" id="original-label" for="f-original">The prompt you gave the AI</label>
+        <textarea id="f-original" placeholder="Paste the prompt you wrote…"></textarea>
+      </div>
+
+      <div style="margin-top:16px">
+        <label class="field-label" for="f-result">What the AI produced</label>
+        <textarea id="f-result" placeholder="Paste the AI's output…"></textarea>
+      </div>
+    </section>
+
+    <!-- 5–6: effort + note --------------------------------------------- -->
+    <section class="card">
+      <div class="step-num">02 — Effort split</div>
+      <h2 class="section-title">How much of the wording is AI's?
+        <span class="auto-badge" id="auto-badge">auto</span>
+      </h2>
+
+      <div class="meter-bar">
+        <div class="seg-fill human" id="meter-human"></div>
+        <div class="seg-fill ai" id="meter-ai"></div>
+      </div>
+      <div class="meter-legend">
+        <span><span class="dot human"></span> Human <b id="legend-human">0%</b></span>
+        <span><span class="dot ai"></span> AI <b id="legend-ai">0%</b></span>
+      </div>
+      <input type="range" id="f-ai" min="0" max="100" value="50" aria-label="AI effort percent">
+    </section>
+
+    <!-- collapsible extras -------------------------------------------- -->
+    <details class="collapse">
+      <summary>Additional info <span class="sum-hint">(optional, saved in your JSON)</span></summary>
+      <div class="collapse-body">
+        <div>
+          <label class="field-label" for="f-ailink">AI conversation link</label>
+          <input type="text" id="f-ailink" placeholder="e.g. a ChatGPT share URL">
+          <p class="hint">Kept in your private JSON record only. It is never placed in the email badge.</p>
+        </div>
+        <div style="margin-top:14px">
+          <label class="field-label" for="f-note">Short note</label>
+          <textarea id="f-note" placeholder="e.g. Facts and decisions are mine; AI tightened the wording."></textarea>
+        </div>
+      </div>
+    </details>
+
+    <!-- output --------------------------------------------------------- -->
+    <section class="card">
+      <div class="step-num">03 — Your badge</div>
+      <h2 class="section-title">Email footer badge</h2>
+
+      <div class="seg" id="mode-toggle" role="radiogroup" aria-label="Badge style" style="margin-bottom:6px">
+        <label><input type="radio" name="badgemode" value="compact" checked><span>Compact (one line)</span></label>
+        <label><input type="radio" name="badgemode" value="detailed"><span>Detailed (a few lines)</span></label>
+      </div>
+
+      <div id="ctx-field" hidden style="margin:14px 0">
+        <label class="field-label" for="f-context">What the AI did <span class="hint" style="display:inline">(shown in the detailed badge)</span></label>
+        <input type="text" id="f-context" placeholder="AI checked spelling, grammar, and wording.">
+        <div class="chips" id="ctx-chips"></div>
+        <button type="button" class="small" id="ctx-add" style="margin-top:8px">+ Save current text as an option</button>
+
+        <label class="checkrow" style="margin-top:14px">
+          <input type="checkbox" id="f-stats">
+          <span>Include a word-count comparison <span class="hint" style="display:inline">(adds line 3: original vs. result word count and vocabulary variety)</span></span>
+        </label>
+      </div>
+
+      <div class="badge-stage" id="badge-stage" aria-label="Badge preview"></div>
+
+      <div class="copy-block">
+        <div class="blk-label">Plain text</div>
+        <code class="copy-pre" id="copy-text"></code>
+      </div>
+      <div class="copy-block">
+        <div class="blk-label">HTML (inline styles, paste into an email)</div>
+        <code class="copy-pre" id="copy-html"></code>
+      </div>
+
+      <div class="base-edit">
+        <div class="base-head">
+          <label class="field-label" for="f-base">“Learn more” link</label>
+          <button type="button" class="linklike" id="base-reset" hidden>Reset to original</button>
+        </div>
+        <input type="text" id="f-base" placeholder="https://your-site.netlify.app/about.html">
+      </div>
+
+      <div class="btn-row" style="margin-top:18px">
+        <button type="button" class="primary" id="copy-text-btn">Copy badge (text)</button>
+        <button type="button" id="copy-html-btn">Copy badge (HTML)</button>
+        <button type="button" id="save-btn">Save JSON</button>
+        <button type="button" id="load-btn">Load JSON</button>
+        <input type="file" id="load-input" accept=".json,application/json" hidden>
+      </div>
+    </section>
+
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
