@@ -54,7 +54,7 @@ Either way you can leave `BASE_URL` blank and the links auto-derive from the dep
 3. The **effort split** auto-estimates from your inputs. Drag the slider to override, and your value always wins.
 4. Choose a **badge style**:
    - **Compact** — one clean line.
-   - **Detailed** — a few lines with a short context note (e.g. “AI checked spelling, grammar, and wording.”) you can type or quick-pick. Optionally tick *Include a word-count comparison* in the effort-split section to add a line-3 stat comparing the original and result by word count and vocabulary variety.
+   - **Detailed** — a few lines with a short context note (e.g. “AI checked spelling, grammar, and wording.”) you can type or quick-pick. Optionally tick *Include a comparison stat* to add a line-3 figure that adapts to the mode: in edit mode it shows roughly how much of your wording the AI changed (a word-level diff); in prompt mode it shows how far your prompt expanded into the result.
 5. **Copy badge (text)** or **Copy badge (HTML)**. The HTML version uses inline styles only and is safe to paste into an email client.
 
 Optional extras (an AI conversation link and a short note) live under **Additional info**. They're saved in your JSON record only and never appear in the badge.

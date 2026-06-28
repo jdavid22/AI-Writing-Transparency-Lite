@@ -300,9 +300,36 @@ details.collapse .collapse-body { padding: 0 22px 20px; }
 .about-block { margin: 26px 0; }
 .about-block h2 { font-size: 16px; margin: 0 0 8px; font-weight: 620; }
 .about-block p { color: var(--ink-soft); margin: 8px 0; }
-.about-bands { list-style: none; padding: 0; margin: 10px 0; display: flex; flex-direction: column; gap: 8px; }
-.about-bands li { display: flex; gap: 10px; align-items: baseline; font-size: 14px; }
-.about-bands .band { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ai); min-width: 86px; }
+.effort-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+.effort-table thead th {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 0 16px 7px 0;
+  border-bottom: 1px solid var(--line-strong);
+}
+.effort-table tbody th, .effort-table tbody td {
+  vertical-align: top;
+  padding: 10px 16px 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.effort-table tbody tr:last-child th, .effort-table tbody tr:last-child td { border-bottom: none; }
+.effort-table .band-cell {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ai);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.effort-table .range { font-family: var(--mono); white-space: nowrap; color: var(--ink); }
+.effort-table tbody td { color: var(--ink-soft); }
 .callout {
   border: 1px solid var(--line-strong);
   border-left: 3px solid var(--warn);

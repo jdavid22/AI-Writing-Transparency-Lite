@@ -175,6 +175,16 @@ function setCustomChips(arr) {
   try { localStorage.setItem(CHIPS_KEY, JSON.stringify(arr)); } catch {}
 }
 
+// remember the last badge style + stat toggle, so the page reopens the way you left it
+const PREFS_KEY = 'aside.badgePrefs';
+function getBadgePrefs() {
+  try { const v = JSON.parse(localStorage.getItem(PREFS_KEY)); return v && typeof v === 'object' ? v : {}; }
+  catch { return {}; }
+}
+function saveBadgePrefs() {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify({ badgeMode: badgeMode(), showStats: showStats() })); } catch {}
+}
+
 // the context line for the detailed badge — user text, or a sensible default
 function defaultContext() {
   return kind() === 'edit'
@@ -183,19 +193,47 @@ function defaultContext() {
 }
 function contextText() { return (elContext.value.trim() || defaultContext()); }
 
-// optional word-count comparison (detailed badge, line 3)
+// optional comparison stat (detailed badge, line 3). Mode-aware:
+//   edit  → how much of the sender's wording the AI changed (word-level diff)
+//   prompt → how much a short prompt expanded into the result (word counts + factor)
 function showStats() { return $('#f-stats').checked; }
 function wordCount(text) { return (text.trim().match(/\S+/g) || []).length; }
-// lexical variety = unique words / total words, as a percent (a rough vocabulary gauge)
-function variety(text) {
-  const w = (text.toLowerCase().match(/[a-z0-9']+/g) || []);
-  if (!w.length) return 0;
-  return Math.round((new Set(w).size / w.length) * 100);
+function tokenize(text) { return (text.toLowerCase().match(/[a-z0-9']+/g) || []); }
+
+// word-level Levenshtein distance, normalised by the longer text → "% changed".
+// Inputs are capped so a pasted essay can't make this expensive.
+function percentChanged(origText, resultText) {
+  const a = tokenize(origText).slice(0, 1500);
+  const b = tokenize(resultText).slice(0, 1500);
+  if (!a.length && !b.length) return 0;
+  const m = a.length, n = b.length;
+  if (!m) return 100;
+  if (!n) return 100;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+    }
+    prev = cur;
+  }
+  return Math.round((prev[n] / Math.max(m, n)) * 100);
 }
+
+function fmtFactor(f) { return f >= 10 ? String(Math.round(f)) : String(Math.round(f * 10) / 10); }
+
 function statsLine() {
   const o = wordCount(elOriginal.value), r = wordCount(elResult.value);
-  const ov = variety(elOriginal.value), rv = variety(elResult.value);
-  return `Original → result: ${o} → ${r} words · variety ${ov}% → ${rv}%`;
+  if (kind() === 'edit') {
+    if (!o && !r) return 'Add your draft and the result to compare.';
+    return `AI revised ~${percentChanged(elOriginal.value, elResult.value)}% of my wording`;
+  }
+  // prompt mode → expansion from prompt to result
+  if (!o || !r) return `${o}-word prompt → ${r} words`;
+  const factor = r / o;
+  if (factor >= 1.1) return `${o}-word prompt → ${r} words (~${fmtFactor(factor)}× expansion)`;
+  return `${o}-word prompt → ${r} words`;
 }
 
 const STAR_COLOR = '#1f8a8a'; // keep in sync with --ai
@@ -447,13 +485,13 @@ function boot() {
   elAi.addEventListener('input', () => { state.manualAi = true; refreshMeter(); refreshBadge(); });
 
   // badge mode + context
-  $('#mode-toggle').addEventListener('change', refreshBadge);
+  $('#mode-toggle').addEventListener('change', () => { saveBadgePrefs(); refreshBadge(); });
   elContext.addEventListener('input', refreshBadge);
   $('#ctx-add').addEventListener('click', addCurrentAsChip);
   renderChips();
 
-  // word-count comparison option (detailed badge)
-  $('#f-stats').addEventListener('change', refreshBadge);
+  // comparison-stat option (detailed badge)
+  $('#f-stats').addEventListener('change', () => { saveBadgePrefs(); refreshBadge(); });
 
   // editable "Learn more" link (the full URL to your About page).
   // The reset control shows only when the value differs from the default.
@@ -482,6 +520,13 @@ function boot() {
     loadJson(e.target.files[0]);
     e.target.value = ''; // allow re-loading the same file
   });
+
+  // restore the last-used badge style + stat toggle
+  const prefs = getBadgePrefs();
+  if (prefs.badgeMode === 'detailed' || prefs.badgeMode === 'compact') {
+    $(`input[name="badgemode"][value="${prefs.badgeMode}"]`).checked = true;
+  }
+  if (typeof prefs.showStats === 'boolean') $('#f-stats').checked = prefs.showStats;
 
   // initial render
   refreshOriginalLabel();
