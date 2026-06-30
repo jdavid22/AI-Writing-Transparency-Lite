@@ -50,12 +50,13 @@ Either way you can leave `BASE_URL` blank and the links auto-derive from the dep
 ## Using it
 
 1. Pick how AI was involved: *a prompt you gave the AI*, or *your own draft the AI edited*.
-2. Paste the original and the AI's result.
+2. Paste the original. Then paste the AI's result into the **rich AI-output box** — bold, lists, and links are preserved, so it stays formatted on the way to Outlook.
 3. The **effort split** auto-estimates from your inputs. Drag the slider to override, and your value always wins.
 4. Choose a **badge style**:
    - **Compact** — one clean line.
    - **Detailed** — a few lines with a short context note (e.g. “AI checked spelling, grammar, and wording.”) you can type or quick-pick. Optionally tick *Include a comparison stat* to add a line-3 figure that adapts to the mode: in edit mode it shows roughly how much of your wording the AI changed (a word-level diff); in prompt mode it shows how far your prompt expanded into the result.
-5. **Copy badge (text)** or **Copy badge (HTML)**. The HTML version uses inline styles only and is safe to paste into an email client.
+5. **Copy email + badge** — copies your formatted AI output with the badge appended (as rich HTML), ready to paste straight into Outlook with fonts intact. The badge includes a small Human-vs-AI ratio bar built from table cells, so it renders natively in Outlook (no images or attachments). Rich copy needs a secure context (https), which Netlify/GitHub Pages provide; from `file://` it falls back to plain text.
+   - Just the badge on its own? Open **Badge code** for the plain-text and HTML versions with their own copy buttons.
 
 Optional extras (an AI conversation link and a short note) live under **Additional info**. They're saved in your JSON record only and never appear in the badge.
 
@@ -70,7 +71,7 @@ Optional extras (an AI conversation link and a short note) live under **Addition
   "v": 1,
   "kind": "prompt | edit",
   "original": "the prompt you gave, or your own draft",
-  "result": "the AI output",
+  "result": "the AI output (sanitized HTML — formatting is preserved)",
   "aiLink": "optional AI conversation URL",
   "ai": 30,
   "note": "optional",

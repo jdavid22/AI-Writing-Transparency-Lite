@@ -78,6 +78,49 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// ----- HTML sanitiser ---------------------------------------------------
+// Cleans formatted (pasted or loaded) HTML so it is safe to put in the DOM
+// or on the clipboard. Parsing happens inside an inert <template>, so nothing
+// runs during sanitising; we keep formatting tags but strip scripts, event
+// handlers, and javascript: URLs. This preserves the "a hostile file stays
+// inert" guarantee even though the AI-output box now holds HTML.
+const KEEP_TAGS = new Set(['A','ABBR','B','BLOCKQUOTE','BR','CODE','DIV','EM','FONT','H1','H2','H3','H4','H5','H6','HR','I','IMG','LI','OL','P','PRE','S','SMALL','SPAN','STRIKE','STRONG','SUB','SUP','TABLE','TBODY','TD','TH','THEAD','TR','U','UL']);
+const DROP_TAGS = new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','LINK','META','BASE','NOSCRIPT','TITLE','HEAD','FORM','INPUT','BUTTON','SVG','MATH']);
+const KEEP_ATTRS = new Set(['href','src','alt','title','style','color','face','size','align','width','height','colspan','rowspan','bgcolor','start','type']);
+
+function sanitizeHtml(html) {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = String(html || '');
+  const all = [];
+  const walker = document.createTreeWalker(tpl.content, NodeFilter.SHOW_ELEMENT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) all.push(n);
+  all.forEach((node) => {
+    const tag = node.tagName;
+    if (DROP_TAGS.has(tag)) { node.remove(); return; }
+    if (!KEEP_TAGS.has(tag)) { // unknown tag: unwrap, keep its children/text
+      while (node.firstChild) node.parentNode.insertBefore(node.firstChild, node);
+      node.remove();
+      return;
+    }
+    [...node.attributes].forEach((attr) => {
+      const name = attr.name.toLowerCase();
+      const val = attr.value;
+      if (name.startsWith('on') || !KEEP_ATTRS.has(name)) { node.removeAttribute(attr.name); return; }
+      if ((name === 'href' || name === 'src') && /^\s*(javascript|data|vbscript):/i.test(val) && !/^\s*data:image\//i.test(val)) {
+        node.removeAttribute(attr.name);
+      }
+      if (name === 'style' && /(javascript:|expression\s*\(|behaviou?r\s*:|@import|url\s*\(\s*['"]?\s*javascript:)/i.test(val)) {
+        node.removeAttribute(attr.name);
+      }
+    });
+  });
+  return tpl.innerHTML;
+}
+
+// the AI-output box is rich (contenteditable): text for measuring, HTML for output
+function resultText() { return (elResult.innerText || elResult.textContent || '').trim(); }
+function resultHtml() { return sanitizeHtml(elResult.innerHTML); }
+
 // ======================================================================
 //  state
 // ======================================================================
@@ -97,7 +140,7 @@ function kind() { return $('input[name="kind"]:checked').value; }
 function estimate() {
   const k = kind();
   const inputLen = elOriginal.value.trim().length;
-  const aiLen = elResult.value.trim().length;
+  const aiLen = resultText().length;
 
   if (k === 'edit') {
     return { ai: 20, reason: 'You wrote the draft and the AI edited it, so most of the work is credited to you (~20% AI).' };
@@ -224,10 +267,11 @@ function percentChanged(origText, resultText) {
 function fmtFactor(f) { return f >= 10 ? String(Math.round(f)) : String(Math.round(f * 10) / 10); }
 
 function statsLine() {
-  const o = wordCount(elOriginal.value), r = wordCount(elResult.value);
+  const rText = resultText();
+  const o = wordCount(elOriginal.value), r = wordCount(rText);
   if (kind() === 'edit') {
     if (!o && !r) return 'Add your draft and the result to compare.';
-    return `AI revised ~${percentChanged(elOriginal.value, elResult.value)}% of my wording`;
+    return `AI revised ~${percentChanged(elOriginal.value, rText)}% of my wording`;
   }
   // prompt mode → expansion from prompt to result
   if (!o || !r) return `${o}-word prompt → ${r} words`;
@@ -239,6 +283,8 @@ function statsLine() {
 const STAR_COLOR = '#1f8a8a'; // keep in sync with --ai
 const LINK_COLOR = '#2d4a7c'; // keep in sync with --human
 const STAT_COLOR = '#8a8a82'; // muted, keep in sync with --muted
+const HUMAN_COLOR = '#2d4a7c'; // bar — human portion (--human)
+const AI_COLOR = '#1f8a8a';    // bar — AI portion (--ai)
 const FONT_STACK = '-apple-system,Segoe UI,Roboto,sans-serif';
 
 // plain text — no em-dashes; compact is one line, detailed is a few lines
@@ -255,30 +301,54 @@ function badgeText() {
   return `✶ ${badgeLabel()} · ${seeMore}`;
 }
 
-// HTML — inline styles only, no <style>/JS. Dynamic pieces escaped.
+// Outlook-safe two-tone ratio bar, built from background-colored table cells
+// (no images, no SVG — renders natively in Outlook desktop and web).
+function barTableHtml() {
+  const ai = aiPct(), human = 100 - ai;
+  const W = 120; // total px
+  const hpx = Math.round(W * human / 100);
+  const apx = W - hpx;
+  const cell = (w, color) => w > 0
+    ? `<td width="${w}" height="9" bgcolor="${color}" style="width:${w}px;height:9px;line-height:9px;font-size:0;background-color:${color};">&#160;</td>`
+    : '';
+  return `<table cellpadding="0" cellspacing="0" border="0" role="presentation" title="Human ${human}% / AI ${ai}%" `
+    + `style="display:inline-table;border-collapse:collapse;border:1px solid #d8d5ca;vertical-align:middle;"><tr>`
+    + `${cell(hpx, HUMAN_COLOR)}${cell(apx, AI_COLOR)}</tr></table>`;
+}
+
+// HTML — inline styles only, no <style>/JS. Dynamic pieces escaped. Keeps the
+// app's styling and embeds the Outlook-safe ratio bar on line 1.
 function badgeHtml() {
   const label = escapeHtml(badgeLabel());
   const href = escapeHtml(aboutUrl());
+  const star = `<span style="color:${STAR_COLOR};">✶</span>`;
+  const link = `<a href="${href}" style="color:${LINK_COLOR};">Learn more</a>`;
+  const bar = barTableHtml();
+  const baseFont = `font-family:${FONT_STACK};font-size:13px;color:#4a4a45;`;
+
+  // line 1 as a small table so the bar sits inline and aligned in Outlook
+  const line1 = (withLink) =>
+    `<table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;${baseFont}"><tr>`
+    + `<td style="white-space:nowrap;padding:0 8px 0 0;vertical-align:middle;${baseFont}">${star} ${label}</td>`
+    + `<td style="padding:0 8px 0 0;vertical-align:middle;">${bar}</td>`
+    + (withLink ? `<td style="white-space:nowrap;vertical-align:middle;${baseFont}">· ${link}</td>` : '')
+    + `</tr></table>`;
+
   if (badgeMode() === 'detailed') {
     const ctx = escapeHtml(contextText());
-    const link = `<a href="${href}" style="color:${LINK_COLOR};">Learn more</a>`;
-    const open = `<div style="font-family:${FONT_STACK};font-size:13px;color:#4a4a45;line-height:1.5;">`;
-    const star = `<span style="color:${STAR_COLOR};">✶</span>`;
     if (showStats()) {
       const stats = escapeHtml(statsLine());
-      return open
-        + `${star} ${label} · ${link}<br>`
-        + `${ctx}<br>`
-        + `<span style="color:${STAT_COLOR};">${stats}</span></div>`;
+      return `<div style="${baseFont}line-height:1.5;">`
+        + line1(true)
+        + `<div>${ctx}</div>`
+        + `<div style="color:${STAT_COLOR};">${stats}</div></div>`;
     }
-    return open
-      + `${star} ${label}<br>`
-      + `${ctx}<br>`
-      + `${link}</div>`;
+    return `<div style="${baseFont}line-height:1.5;">`
+      + line1(false)
+      + `<div>${ctx}</div>`
+      + `<div>${link}</div></div>`;
   }
-  return `<span style="font-family:${FONT_STACK};font-size:13px;color:#4a4a45;">`
-    + `<span style="color:${STAR_COLOR};">✶</span> ${label} · `
-    + `<a href="${href}" style="color:${LINK_COLOR};">Learn more</a></span>`;
+  return `<div style="${baseFont}">${line1(true)}</div>`;
 }
 
 function refreshBadge() {
@@ -330,6 +400,59 @@ function refreshBadge() {
   $('#copy-html').textContent = badgeHtml();
 }
 
+// ======================================================================
+//  copy: formatted AI output + badge (rich clipboard, for pasting to Outlook)
+// ======================================================================
+function emailWithBadgeHtml() {
+  const body = resultHtml(); // sanitised formatted email
+  const badge = badgeHtml();
+  const spacer = body ? '<br>' : '';
+  return `<div style="font-family:${FONT_STACK};font-size:13px;color:#1c1c1a;">${body}${spacer}${badge}</div>`;
+}
+function emailWithBadgeText() {
+  const body = resultText();
+  return (body ? body + '\n\n' : '') + badgeText();
+}
+
+async function copyEmailWithBadge() {
+  const html = emailWithBadgeHtml();
+  const text = emailWithBadgeText();
+  // Preferred: rich clipboard write (needs a secure context, e.g. https on Netlify)
+  if (navigator.clipboard && window.ClipboardItem) {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({
+        'text/html': new Blob([html], { type: 'text/html' }),
+        'text/plain': new Blob([text], { type: 'text/plain' }),
+      })]);
+      toast('Email + badge copied — paste into Outlook ✓');
+      return;
+    } catch { /* fall through to execCommand */ }
+  }
+  // Fallback: select a hidden rich node and execCommand('copy'). Works on file://.
+  if (richCopyFallback(html)) { toast('Email + badge copied — paste into Outlook ✓'); return; }
+  copy(text, 'Copied as plain text'); // last resort
+}
+
+function richCopyFallback(html) {
+  const holder = el('div'); // html is already sanitised
+  holder.innerHTML = html;
+  holder.setAttribute('contenteditable', 'true');
+  holder.style.cssText = 'position:fixed;left:-9999px;top:0;white-space:pre-wrap;';
+  document.body.appendChild(holder);
+  let ok = false;
+  try {
+    const range = document.createRange();
+    range.selectNodeContents(holder);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    ok = document.execCommand('copy');
+    sel.removeAllRanges();
+  } catch { ok = false; }
+  holder.remove();
+  return ok;
+}
+
 // render the quick-pick chips: built-ins (plain) then saved customs (removable)
 function renderChips() {
   const wrap = $('#ctx-chips');
@@ -372,7 +495,7 @@ function buildRecord() {
     v: 1,
     kind: kind(),
     original: elOriginal.value,
-    result: elResult.value,
+    result: resultHtml(),
     aiLink: elAiLink.value.trim(),
     ai: aiPct(),
     note: elNote.value,
@@ -414,9 +537,10 @@ function applyRecord(rec) {
   const k = rec.kind === 'edit' ? 'edit' : 'prompt';
   $(`input[name="kind"][value="${k}"]`).checked = true;
 
-  // .value assignment is inert against markup; we never use innerHTML
+  // plain fields use .value (inert against markup); the rich result is
+  // sanitised before it ever touches innerHTML, so a hostile file stays inert
   elOriginal.value = typeof rec.original === 'string' ? rec.original : '';
-  elResult.value = typeof rec.result === 'string' ? rec.result : '';
+  elResult.innerHTML = typeof rec.result === 'string' ? sanitizeHtml(rec.result) : '';
   elAiLink.value = typeof rec.aiLink === 'string' ? rec.aiLink : '';
   elNote.value = typeof rec.note === 'string' ? rec.note : '';
   elContext.value = typeof rec.context === 'string' ? rec.context : '';
@@ -475,6 +599,30 @@ function boot() {
     refreshBadge();
   }));
 
+  // sanitise rich pastes into the AI-output box (keep formatting, drop scripts/cruft)
+  elResult.addEventListener('paste', (e) => {
+    const data = e.clipboardData;
+    if (!data) return; // let the browser handle it
+    e.preventDefault();
+    const html = data.getData('text/html');
+    const insert = html ? sanitizeHtml(html) : escapeHtml(data.getData('text/plain')).replace(/\n/g, '<br>');
+    let done = false;
+    try { done = document.execCommand('insertHTML', false, insert); } catch { done = false; }
+    if (!done) { // fallback: insert sanitised nodes at the caret
+      const tpl = document.createElement('template');
+      tpl.innerHTML = insert;
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount) {
+        const range = sel.getRangeAt(0);
+        range.deleteContents();
+        range.insertNode(tpl.content);
+      } else {
+        elResult.appendChild(tpl.content);
+      }
+    }
+    elResult.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+
   $('#kind-toggle').addEventListener('change', () => {
     refreshOriginalLabel();
     if (!state.manualAi) refreshMeter();
@@ -512,6 +660,7 @@ function boot() {
   });
 
   // actions
+  $('#copy-email-btn').addEventListener('click', copyEmailWithBadge);
   $('#copy-text-btn').addEventListener('click', () => copy(badgeText(), 'Badge (text) copied'));
   $('#copy-html-btn').addEventListener('click', () => copy(badgeHtml(), 'Badge (HTML) copied'));
   $('#save-btn').addEventListener('click', saveJson);

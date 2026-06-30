@@ -113,12 +113,32 @@ textarea, input[type="text"], input[type="date"], select {
   padding: 10px 12px;
   resize: vertical;
 }
-textarea:focus, input:focus, select:focus {
+textarea:focus, input:focus, select:focus, .rich:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(45, 74, 124, 0.12);
 }
 textarea { min-height: 96px; line-height: 1.5; }
+
+/* rich (contenteditable) input — styled like a textarea, but keeps pasted formatting */
+.rich {
+  width: 100%;
+  min-height: 120px;
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  overflow-y: auto;
+  max-height: 360px;
+}
+.rich:empty::before { content: attr(data-placeholder); color: var(--muted); }
+.rich p { margin: 0 0 8px; }
+.rich p:last-child { margin-bottom: 0; }
+.rich a { color: var(--human); }
 .mono { font-family: var(--mono); }
 
 /* segmented radio toggle */

@@ -37,7 +37,9 @@
 
       <div style="margin-top:16px">
         <label class="field-label" for="f-result">What the AI produced</label>
-        <textarea id="f-result" placeholder="Paste the AI's output…"></textarea>
+        <div id="f-result" class="rich" contenteditable="true" role="textbox" aria-multiline="true"
+             aria-label="What the AI produced" data-placeholder="Paste the AI's output… (formatting is kept)"></div>
+        <p class="hint">Paste the formatted email here. Bold, lists, and links are preserved so you can drop it straight into Outlook.</p>
       </div>
     </section>
 
@@ -99,15 +101,6 @@
 
       <div class="badge-stage" id="badge-stage" aria-label="Badge preview"></div>
 
-      <div class="copy-block">
-        <div class="blk-label">Plain text</div>
-        <code class="copy-pre" id="copy-text"></code>
-      </div>
-      <div class="copy-block">
-        <div class="blk-label">HTML (inline styles, paste into an email)</div>
-        <code class="copy-pre" id="copy-html"></code>
-      </div>
-
       <div class="base-edit">
         <div class="base-head">
           <label class="field-label" for="f-base">“Learn more” link</label>
@@ -117,12 +110,28 @@
       </div>
 
       <div class="btn-row" style="margin-top:18px">
-        <button type="button" class="primary" id="copy-text-btn">Copy badge (text)</button>
-        <button type="button" id="copy-html-btn">Copy badge (HTML)</button>
+        <button type="button" class="primary" id="copy-email-btn">Copy email + badge</button>
         <button type="button" id="save-btn">Save JSON</button>
         <button type="button" id="load-btn">Load JSON</button>
         <input type="file" id="load-input" accept=".json,application/json" hidden>
       </div>
+      <p class="hint">Copies your formatted AI output with the badge appended, ready to paste into Outlook.</p>
+
+      <details class="collapse" style="margin-top:18px">
+        <summary>Badge code <span class="sum-hint">(plain text &amp; HTML, just the badge)</span></summary>
+        <div class="collapse-body">
+          <div class="copy-block">
+            <div class="blk-label">Plain text</div>
+            <code class="copy-pre" id="copy-text"></code>
+            <button type="button" class="small" id="copy-text-btn" style="margin-top:6px">Copy plain text</button>
+          </div>
+          <div class="copy-block">
+            <div class="blk-label">HTML (inline styles)</div>
+            <code class="copy-pre" id="copy-html"></code>
+            <button type="button" class="small" id="copy-html-btn" style="margin-top:6px">Copy HTML</button>
+          </div>
+        </div>
+      </details>
     </section>
 
     <a class="credit" href="https://josiahmdavidson.com" target="_blank" rel="noopener">Built by Claude + Josiah in Illinois 🌽</a>
