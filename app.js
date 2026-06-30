@@ -45,6 +45,15 @@ function defaultLearnMore() {
 function resolveLearnMore() { return { url: storedUrl() || defaultLearnMore() }; }
 function aboutUrl() { return resolveLearnMore().url; }
 
+// persist/apply the "Learn more" override (shared by the input box and JSON load)
+function persistLearnMore(v) {
+  try { v ? localStorage.setItem(BASE_KEY, v) : localStorage.removeItem(BASE_KEY); } catch {}
+}
+function updateResetVisibility() {
+  const btn = $('#base-reset');
+  if (btn && elBase) btn.hidden = elBase.value.trim() === defaultLearnMore();
+}
+
 // ======================================================================
 //  tiny DOM helpers (textContent only — innerHTML is rejected)
 // ======================================================================
@@ -117,9 +126,53 @@ function sanitizeHtml(html) {
   return tpl.innerHTML;
 }
 
+// HTML → plain text with line breaks, independent of layout/visibility
+// (innerText is unreliable for content inside a collapsed <details>)
+function htmlToText(html) {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = String(html || '')
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\/\s*(p|div|li|tr|h[1-6]|blockquote)\s*>/gi, '\n');
+  return (tpl.content.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 // the AI-output box is rich (contenteditable): text for measuring, HTML for output
-function resultText() { return (elResult.innerText || elResult.textContent || '').trim(); }
+function resultText() { return htmlToText(elResult.innerHTML); }
 function resultHtml() { return sanitizeHtml(elResult.innerHTML); }
+
+// the signature is a reusable rich block, saved in this browser (localStorage)
+const SIG_KEY = 'aside.signature';
+function signatureHtml() { return sanitizeHtml(elSignature.innerHTML); }
+function signatureText() { return htmlToText(elSignature.innerHTML); }
+function saveSignature() {
+  try { localStorage.setItem(SIG_KEY, signatureHtml()); } catch {}
+}
+
+// sanitise rich pastes into a contenteditable box (keep formatting, drop scripts/cruft)
+function attachRichPaste(node) {
+  node.addEventListener('paste', (e) => {
+    const data = e.clipboardData;
+    if (!data) return; // let the browser handle it
+    e.preventDefault();
+    const html = data.getData('text/html');
+    const insert = html ? sanitizeHtml(html) : escapeHtml(data.getData('text/plain')).replace(/\n/g, '<br>');
+    let done = false;
+    try { done = document.execCommand('insertHTML', false, insert); } catch { done = false; }
+    if (!done) { // fallback: insert sanitised nodes at the caret
+      const tpl = document.createElement('template');
+      tpl.innerHTML = insert;
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount) {
+        const range = sel.getRangeAt(0);
+        range.deleteContents();
+        range.insertNode(tpl.content);
+      } else {
+        node.appendChild(tpl.content);
+      }
+    }
+    node.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
 
 // ======================================================================
 //  state
@@ -130,7 +183,7 @@ const state = {
 };
 
 // element refs
-let elOriginal, elResult, elAiLink, elNote, elAi, elContext, elBase;
+let elOriginal, elResult, elAiLink, elNote, elAi, elContext, elBase, elSignature;
 
 function kind() { return $('input[name="kind"]:checked').value; }
 
@@ -305,11 +358,11 @@ function badgeText() {
 // (no images, no SVG — renders natively in Outlook desktop and web).
 function barTableHtml() {
   const ai = aiPct(), human = 100 - ai;
-  const W = 120; // total px
+  const W = 88, H = 7; // total px (kept small so the badge stays compact)
   const hpx = Math.round(W * human / 100);
   const apx = W - hpx;
   const cell = (w, color) => w > 0
-    ? `<td width="${w}" height="9" bgcolor="${color}" style="width:${w}px;height:9px;line-height:9px;font-size:0;background-color:${color};">&#160;</td>`
+    ? `<td width="${w}" height="${H}" bgcolor="${color}" style="width:${w}px;height:${H}px;line-height:${H}px;font-size:0;background-color:${color};">&#160;</td>`
     : '';
   return `<table cellpadding="0" cellspacing="0" border="0" role="presentation" title="Human ${human}% / AI ${ai}%" `
     + `style="display:inline-table;border-collapse:collapse;border:1px solid #d8d5ca;vertical-align:middle;"><tr>`
@@ -364,7 +417,7 @@ function refreshBadge() {
   stage.textContent = '';
   const line = el('span', { class: 'badge-line' + (detailed ? ' detailed' : '') });
 
-  const firstLine = el('span');
+  const firstLine = el('span', { class: 'badge-first' });
   firstLine.appendChild(el('span', { class: 'star', text: '✶' }));
   firstLine.appendChild(document.createTextNode(' ' + badgeLabel() + ' '));
   // small gradient bar (preview only — not part of the copyable badge)
@@ -403,15 +456,20 @@ function refreshBadge() {
 // ======================================================================
 //  copy: formatted AI output + badge (rich clipboard, for pasting to Outlook)
 // ======================================================================
+// order: AI-produced reply → signature → badge
 function emailWithBadgeHtml() {
-  const body = resultHtml(); // sanitised formatted email
-  const badge = badgeHtml();
-  const spacer = body ? '<br>' : '';
-  return `<div style="font-family:${FONT_STACK};font-size:13px;color:#1c1c1a;">${body}${spacer}${badge}</div>`;
+  const parts = [];
+  const body = resultHtml(); if (body) parts.push(body);
+  const sig = signatureHtml(); if (sig) parts.push(sig);
+  parts.push(badgeHtml());
+  return `<div style="font-family:${FONT_STACK};font-size:13px;color:#1c1c1a;">${parts.join('<br>')}</div>`;
 }
 function emailWithBadgeText() {
-  const body = resultText();
-  return (body ? body + '\n\n' : '') + badgeText();
+  const parts = [];
+  const body = resultText(); if (body) parts.push(body);
+  const sig = signatureText(); if (sig) parts.push(sig);
+  parts.push(badgeText());
+  return parts.join('\n\n');
 }
 
 async function copyEmailWithBadge() {
@@ -502,6 +560,8 @@ function buildRecord() {
     badgeMode: badgeMode(),
     context: elContext.value,
     showStats: showStats(),
+    learnMore: resolveLearnMore().url,   // the "Learn more" link this record uses
+    contextChips: getCustomChips(),      // your saved quick-pick options
     created: state.created || 0,
     updated: 0,
   };
@@ -556,6 +616,23 @@ function applyRecord(rec) {
 
   state.created = Number(rec.created) || 0;
 
+  // restore the "Learn more" link this record was made with
+  if (typeof rec.learnMore === 'string' && rec.learnMore.trim()) {
+    elBase.value = rec.learnMore.trim();
+    persistLearnMore(elBase.value);
+    updateResetVisibility();
+  }
+
+  // merge the record's saved chips into your list (union — never wipes existing)
+  if (Array.isArray(rec.contextChips)) {
+    const chips = getCustomChips();
+    rec.contextChips.forEach((t) => {
+      if (typeof t === 'string' && t.trim() && !DEFAULT_CHIPS.includes(t) && !chips.includes(t)) chips.push(t);
+    });
+    setCustomChips(chips);
+    renderChips();
+  }
+
   refreshOriginalLabel();
   refreshMeter();
   refreshBadge();
@@ -592,6 +669,7 @@ function boot() {
   elAi = $('#f-ai');
   elContext = $('#f-context');
   elBase = $('#f-base');
+  elSignature = $('#f-signature');
 
   // source text → re-estimate (unless manual) and re-render the badge
   [elOriginal, elResult].forEach((node) => node.addEventListener('input', () => {
@@ -599,29 +677,13 @@ function boot() {
     refreshBadge();
   }));
 
-  // sanitise rich pastes into the AI-output box (keep formatting, drop scripts/cruft)
-  elResult.addEventListener('paste', (e) => {
-    const data = e.clipboardData;
-    if (!data) return; // let the browser handle it
-    e.preventDefault();
-    const html = data.getData('text/html');
-    const insert = html ? sanitizeHtml(html) : escapeHtml(data.getData('text/plain')).replace(/\n/g, '<br>');
-    let done = false;
-    try { done = document.execCommand('insertHTML', false, insert); } catch { done = false; }
-    if (!done) { // fallback: insert sanitised nodes at the caret
-      const tpl = document.createElement('template');
-      tpl.innerHTML = insert;
-      const sel = window.getSelection();
-      if (sel && sel.rangeCount) {
-        const range = sel.getRangeAt(0);
-        range.deleteContents();
-        range.insertNode(tpl.content);
-      } else {
-        elResult.appendChild(tpl.content);
-      }
-    }
-    elResult.dispatchEvent(new Event('input', { bubbles: true }));
-  });
+  // sanitise rich pastes into both rich boxes (keep formatting, drop scripts/cruft)
+  attachRichPaste(elResult);
+  attachRichPaste(elSignature);
+
+  // signature: load the saved one, and persist on edit
+  try { const saved = localStorage.getItem(SIG_KEY); if (saved) elSignature.innerHTML = sanitizeHtml(saved); } catch {}
+  elSignature.addEventListener('input', saveSignature);
 
   $('#kind-toggle').addEventListener('change', () => {
     refreshOriginalLabel();
@@ -643,12 +705,10 @@ function boot() {
 
   // editable "Learn more" link (the full URL to your About page).
   // The reset control shows only when the value differs from the default.
-  function updateResetVisibility() { $('#base-reset').hidden = elBase.value.trim() === defaultLearnMore(); }
   elBase.value = resolveLearnMore().url;
   updateResetVisibility();
   elBase.addEventListener('input', () => {
-    const v = elBase.value.trim();
-    try { v ? localStorage.setItem(BASE_KEY, v) : localStorage.removeItem(BASE_KEY); } catch {}
+    persistLearnMore(elBase.value.trim());
     updateResetVisibility();
     refreshBadge();
   });

@@ -95,7 +95,7 @@
 
         <label class="checkrow" style="margin-top:14px">
           <input type="checkbox" id="f-stats">
-          <span>Include a comparison stat <span class="hint" style="display:inline">(adds line 3: how much the AI changed your draft, or how far your prompt expanded)</span></span>
+          <span>Include comparison statistics</span>
         </label>
       </div>
 
@@ -115,9 +115,17 @@
         <button type="button" id="load-btn">Load JSON</button>
         <input type="file" id="load-input" accept=".json,application/json" hidden>
       </div>
-      <p class="hint">Copies your formatted AI output with the badge appended, ready to paste into Outlook.</p>
 
       <details class="collapse" style="margin-top:18px">
+        <summary>Signature <span class="sum-hint">(optional, added above the badge when you copy)</span></summary>
+        <div class="collapse-body">
+          <div id="f-signature" class="rich" contenteditable="true" role="textbox" aria-multiline="true"
+               aria-label="Email signature" data-placeholder="Paste your formatted signature… (bold, underline, links kept)"></div>
+          <p class="hint">Saved in this browser and reused next time.</p>
+        </div>
+      </details>
+
+      <details class="collapse" style="margin-top:14px">
         <summary>Badge code <span class="sum-hint">(plain text &amp; HTML, just the badge)</span></summary>
         <div class="collapse-body">
           <div class="copy-block">

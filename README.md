@@ -78,6 +78,8 @@ Optional extras (an AI conversation link and a short note) live under **Addition
   "badgeMode": "compact | detailed",
   "context": "optional context line for the detailed badge",
   "showStats": false,
+  "learnMore": "the full 'Learn more' URL this record uses",
+  "contextChips": ["your saved quick-pick context options"],
   "created": 0,
   "updated": 0
 }

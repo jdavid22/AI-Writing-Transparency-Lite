@@ -225,14 +225,15 @@ input[type="range"] { width: 100%; accent-color: var(--ai); margin-top: 8px; }
   color: var(--ink-soft);
 }
 .badge-line.detailed { display: block; }
+.badge-line .badge-first { display: inline-flex; align-items: center; gap: 5px; }
 .badge-line .ctx { display: block; margin: 2px 0; }
 .badge-line .stats { display: block; margin: 2px 0; color: var(--muted); }
 .badge-line .star { color: var(--ai); }
 .badge-line a { color: var(--human); text-decoration: underline; }
 .badge-bar {
   display: inline-flex;
-  width: 64px;
-  height: 8px;
+  width: 48px;
+  height: 7px;
   border-radius: 4px;
   overflow: hidden;
   border: 1px solid var(--line-strong);
